@@ -16,7 +16,7 @@
 |---|---|---|
 | 1 | 无需登录，打开即可查任意公司 | App 端**零账号体系**；后端用服务端 Cookie 池代用户访问上游，用户侧不感知。首次打开即出「热门查询」，输入即搜 |
 | 2 | Cookie 池按已用频次轮替 | 后端 `cookie_pool.acquire()` 按 `used_today ASC, last_used_at ASC` 取「最闲」的 Cookie，取用完 `used_today+1`；额度耗尽自动跳过；JWT 剩 10 分钟时用 `refreshToken` 续期，池子可无限自续 |
-| 3 | 查询结果落 MySQL + 定期分批刷新 | 首查写 `companies` / `dimensions`，之后再查直接读本地库（实测 33–43 ms）；`scheduler` 每 15 分钟取「被看得多、抓得少」的企业分批回源刷新，并保留 `quota_reserve` 额度给实时查询 |
+| 3 | 查询结果落 MySQL + 刷新策略 | 首查写 `companies` / `dimensions`，之后再查直接读本地库（实测 33–43 ms）。**刷新已改为手动**：管理后台点某家企业的「刷新」才回源，常驻任务只给 Cookie 续 token（不耗额度），并保留 `quota_reserve` 额度给实时查询 |
 | 4 | 搜索框 autocomplete | 调研出上游 `GET /riskbird-api/api/v1/companies/fast-search`——**匿名可达、不消耗每日额度**。App 输入防抖 260 ms 即调后端 `/api/autocomplete`，返回已切好的高亮分段，前端直接渲染文案 |
 | 5 | 应用名与图标 | 名称 `伟哥天眼查`；图标见下文「图标设计」，已生成全套 mipmap + 自适应图标（`docs/icon_512.png` 可预览） |
 | 6 | 导出/分享 Excel 到手机 | 后端 openpyxl 现拼 xlsx（每维度一个 sheet）；App 端 Android 10+ 用 MediaStore 直写「下载/伟哥天眼查/」**零权限**，8/9 写私有目录；分享走 FileProvider + 系统分享面板 |
@@ -128,7 +128,26 @@ Excel 同样是中文表头：`企业概览` 只留企业名称 / 统一社会�
 
 ---
 
-## 六、已知限制
+## 六、管理后台
+
+浏览器打开 **`https://dify.eborry.com/riskbird/admin`**（账号 `admin`，密码在服务器 `/root/riskbird/.env`）。
+
+App 只管查，运维侧的事情都在这里：
+
+| 分区 | 用途 |
+|---|---|
+| 概览 | 收录企业 / 缓存数据 / 今日查询 / 剩余额度 + 近 24 小时调用柱图 |
+| 查询记录 | 企业缓存清单，行内可**刷新 / 预抓 / 清缓存**——数据过期就点这一家，不动全局 |
+| 本地数据 | 库概览 → 企业详情 → 维度记录表三层下钻，可下载原始 JSON、删单维度、清理过期数据 |
+| Cookie 池 | 增删改、单条与批量续期、用量水位（额度见底时在这里加号） |
+| 调用流水 | 每次上游调用的 cookie_id、耗时、成败与错误信息 |
+
+> 自动刷新已关闭（`RB_REFRESH_ENABLED=0`）：常驻任务只给 Cookie 续 token，
+> 企业数据更新由管理员按需点「刷新」，单家失败不影响其它家。
+
+---
+
+## 七、已知限制
 
 - **上游限流**：单账号每天 50 次详情抓取，且连续请求会触发 `operation:too:fast`（全局冷却 120 s）。
   因此维度数据是「缓存优先 + 按需扩展」：点开维度先给缓存，`canLoadMore` 时按 500 条一档向上游追加，
