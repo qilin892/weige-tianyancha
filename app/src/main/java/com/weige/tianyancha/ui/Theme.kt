@@ -21,7 +21,7 @@ private val DarkPanelHigh = Color(0xFF1C2230)
 private val TextMain = Color(0xFFF2F4F8)
 private val TextSub = Color(0xFF9AA4B5)
 
-val RiseRed = Color(0xFFF04C4C)     // 在营/存续 用中国股市习惯的红色表示"好"
+val RiseRed = Color(0xFFF04C4C)     // 风险/异常提示用红（企业状态本身用绿，见 Fields.statusColor）
 val FallGreen = Color(0xFF2BB673)
 
 private val DarkColors = darkColorScheme(
