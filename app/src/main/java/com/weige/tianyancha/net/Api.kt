@@ -223,6 +223,20 @@ object Api {
         is JSONObject -> v.toString()
         is Boolean -> if (v) "是" else "否"
         is Double -> if (v % 1.0 == 0.0) v.toLong().toString() else v.toString()
-        else -> v.toString()
+        else -> stripHtml(v.toString())
+    }
+
+    private val TAG_RE = Regex("<[^>]{1,200}>")
+
+    /** 上游有些字段内嵌 <span style=...> 高亮/着色标记，直接展示会露标签 */
+    private fun stripHtml(s: String): String {
+        if (!s.contains('<')) return s
+        return TAG_RE.replace(s, "")
+            .replace("&nbsp;", " ")
+            .replace("&amp;", "&")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&quot;", "\"")
+            .trim()
     }
 }

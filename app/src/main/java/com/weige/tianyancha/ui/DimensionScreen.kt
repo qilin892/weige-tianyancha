@@ -40,7 +40,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.weige.tianyancha.net.DimRow
-import com.weige.tianyancha.net.DimensionPage
 import com.weige.tianyancha.vm.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,10 +53,15 @@ fun DimensionScreen(vm: MainViewModel, title: String, onBack: () -> Unit) {
             TopAppBar(
                 title = {
                     Column {
-                        Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         if (page != null) {
                             Text(
-                                "共 ${formatCount(page.total)} 条 · 本地已缓存 ${page.cachedRows}",
+                                "共 ${formatCount(page.total)} 条",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -66,8 +70,10 @@ fun DimensionScreen(vm: MainViewModel, title: String, onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回",
-                            tint = MaterialTheme.colorScheme.onBackground)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, "返回",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -82,15 +88,16 @@ fun DimensionScreen(vm: MainViewModel, title: String, onBack: () -> Unit) {
                 vm.dimError != null -> EmptyBlock("读取失败", vm.dimError)
                 page == null || page.rows.isEmpty() -> EmptyBlock(
                     "暂无数据",
-                    "该维度在缓存里没有记录，可在详情页下拉刷新后重试",
+                    "该维度暂时没有记录，可返回上一页刷新后重试",
                 )
+
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     item { Spacer(Modifier.height(4.dp)) }
                     itemsIndexed(page.rows) { idx, row ->
-                        RowCard(idx + 1, row)
+                        RowCard(idx + 1, title, row)
                     }
                     if (page.canLoadMore) {
                         item {
@@ -109,20 +116,15 @@ fun DimensionScreen(vm: MainViewModel, title: String, onBack: () -> Unit) {
                                 ) {
                                     if (vm.dimLoadingMore) {
                                         CircularProgressIndicator(
-                                            Modifier.size(16.dp), color = Amber, strokeWidth = 2.dp
+                                            Modifier.size(16.dp), color = accent(), strokeWidth = 2.dp
                                         )
                                         Spacer(Modifier.size(8.dp))
                                     }
                                     Text(
-                                        if (vm.dimLoadingMore) "正在向上游取数…" else "加载更多",
-                                        color = Amber,
+                                        if (vm.dimLoadingMore) "正在获取…" else "加载更多",
+                                        color = accent(),
                                     )
                                 }
-                                Text(
-                                    "上游有频率限制，一次最多再取 500 条",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                )
                             }
                         }
                     }
@@ -134,9 +136,9 @@ fun DimensionScreen(vm: MainViewModel, title: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun RowCard(index: Int, row: DimRow) {
+private fun RowCard(index: Int, dimensionName: String, row: DimRow) {
     var expanded by remember { mutableStateOf(false) }
-    val cells = row.cells.filter { it.second.isNotBlank() }
+    val cells = Fields.visibleCells(row.cells)
     if (cells.isEmpty()) return
 
     val titleKey = pickTitleKey(cells)
@@ -154,49 +156,38 @@ private fun RowCard(index: Int, row: DimRow) {
             .padding(12.dp)
     ) {
         Row(verticalAlignment = Alignment.Top) {
-            Box(
-                Modifier
-                    .size(20.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("$index", fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Icon(
+                Fields.dimensionIcon(dimensionName), null,
+                tint = iconTint(),
+                modifier = Modifier.padding(top = 1.dp).size(15.dp),
+            )
             Text(
                 titleValue,
-                modifier = Modifier.padding(start = 8.dp).weight(1f),
+                modifier = Modifier.padding(start = 6.dp).weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = if (expanded) 6 else 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Text(
+                "#$index",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            )
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
         shown.forEach { (k, v) ->
-            Row(Modifier.padding(top = 3.dp)) {
-                Text(
-                    Fields.label(k),
-                    modifier = Modifier.size(width = 80.dp, height = 18.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    v,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = if (expanded) 20 else 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            FieldRow(
+                key = k, value = v, labelWidth = 72, compact = true,
+                expandHint = false, expandedOverride = expanded,
+            )
         }
         if (others.size > 3) {
             Text(
-                if (expanded) "收起" else "展开全部 ${cells.size} 项",
+                if (expanded) "收起" else "展开全部",
                 style = MaterialTheme.typography.labelSmall,
-                color = Amber,
+                color = accent(),
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
@@ -206,10 +197,20 @@ private fun RowCard(index: Int, row: DimRow) {
 /** 选一个最能代表这行的字段作为标题 */
 private fun pickTitleKey(cells: List<Pair<String, String>>): String {
     val preferred = listOf(
-        "position", "title", "caseNo", "caseReason", "patentName", "tmName",
-        "softwareName", "workerName", "shareholderName", "entName", "name",
-        "changeItem", "punishReason", "domain", "websiteName", "bookName",
+        // 名称型字段优先，直接决定这张卡「叫什么」
+        "standardName", "patentName", "tmName", "softwareName", "workName",
+        "shareHolderName", "shareholderName", "shaName", "controllerName",
+        "beneficiaryName", "benefitName", "personName", "entName", "name",
+        "wname", "websiteName", "domain", "title", "tenderTitle", "jobRequirement",
+        // 再说「事件型」维度，案号/事由/处罚内容才是主信息
+        "caseNo", "caseReason", "cause", "punishContent", "punishNo",
+        "altItemCodeCn", "altItem", "addReason", "checkResult", "mortgagee", "pledgee",
+        "position", "type", "status",
     )
     preferred.forEach { p -> if (cells.any { it.first == p && it.second.isNotBlank() }) return p }
+    // 兜底：挑第一个「像名字」的文本（有长度、含中文），避免拿 id、金额当标题
+    cells.firstOrNull { (_, v) ->
+        v.length >= 4 && v.any { c -> c.isLetter() && c.code > 0x2E80 }
+    }?.let { return it.first }
     return cells.first().first
 }

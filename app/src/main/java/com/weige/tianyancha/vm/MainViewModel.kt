@@ -13,6 +13,7 @@ import com.weige.tianyancha.net.DimItem
 import com.weige.tianyancha.net.HotCompany
 import com.weige.tianyancha.net.Stats
 import com.weige.tianyancha.net.Suggestion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -37,6 +38,8 @@ class MainViewModel : ViewModel() {
     var suggesting by mutableStateOf(false)
         private set
     var showSuggestions by mutableStateOf(false)
+        private set
+    var suggestError by mutableStateOf<String?>(null)
         private set
 
     // ---------------- 企业 ----------------
@@ -80,6 +83,7 @@ class MainViewModel : ViewModel() {
     fun onQueryChange(q: String) {
         query = q
         suggestJob?.cancel()
+        suggestError = null
         if (q.isBlank()) {
             suggestions = emptyList()
             showSuggestions = false
@@ -91,11 +95,22 @@ class MainViewModel : ViewModel() {
         suggestJob = viewModelScope.launch {
             delay(260)   // 防抖：连续输入只打最后一次
             try {
-                suggestions = Api.autocomplete(q, 10)
+                val list = Api.autocomplete(q, 10)
+                // 回来时用户可能已经改了输入，只认自己这一轮的结果
+                if (query == q) {
+                    suggestions = list
+                    suggestError = null
+                }
+            } catch (ce: CancellationException) {
+                // 被新一轮输入取消：必须原样抛出，绝不能当成「没结果」把新结果清空
+                throw ce
             } catch (e: Exception) {
-                suggestions = emptyList()
+                if (query == q) {
+                    suggestions = emptyList()
+                    suggestError = (e as? ApiException)?.message ?: "搜索失败，请检查网络"
+                }
             } finally {
-                suggesting = false
+                if (query == q) suggesting = false
             }
         }
     }
@@ -105,6 +120,7 @@ class MainViewModel : ViewModel() {
         query = ""
         suggestions = emptyList()
         showSuggestions = false
+        suggestError = null
     }
 
     fun hideSuggestions() { showSuggestions = false }
@@ -116,12 +132,15 @@ class MainViewModel : ViewModel() {
         suggestJob?.cancel()
         showSuggestions = true
         suggesting = true
+        suggestError = null
         viewModelScope.launch {
             try {
                 suggestions = Api.autocomplete(q, 20)
                 if (suggestions.isEmpty()) toast = "没有找到相关企业"
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
-                toast = (e as? ApiException)?.message ?: "搜索失败，请检查网络"
+                suggestError = (e as? ApiException)?.message ?: "搜索失败，请检查网络"
             } finally {
                 suggesting = false
             }
@@ -151,6 +170,8 @@ class MainViewModel : ViewModel() {
                     val c = company
                     if (c != null) toast = if (c.cached) "已从本地库读取" else "已抓取最新数据"
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 companyError = (e as? ApiException)?.message ?: "加载失败：${e.message}"
             } finally {
@@ -194,6 +215,8 @@ class MainViewModel : ViewModel() {
                 if (more && page.cachedRows <= before) {
                     toast = "上游暂时限流，稍后再试"
                 }
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 val msg = (e as? ApiException)?.message ?: "加载失败：${e.message}"
                 if (more) toast = msg else dimError = msg

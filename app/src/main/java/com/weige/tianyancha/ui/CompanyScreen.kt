@@ -13,21 +13,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -76,13 +77,15 @@ fun CompanyScreen(vm: MainViewModel, onBack: () -> Unit) {
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回",
-                            tint = MaterialTheme.colorScheme.onBackground)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack, "返回",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = { vm.refreshCompany() }) {
-                        Icon(Icons.Filled.Refresh, "刷新", tint = Amber)
+                        Icon(Icons.Filled.Refresh, "刷新", tint = accent())
                     }
                     IconButton(
                         enabled = c != null && !exporting,
@@ -108,10 +111,10 @@ fun CompanyScreen(vm: MainViewModel, onBack: () -> Unit) {
                     ) {
                         if (exporting) {
                             CircularProgressIndicator(
-                                Modifier.size(18.dp), color = Amber, strokeWidth = 2.dp
+                                Modifier.size(18.dp), color = accent(), strokeWidth = 2.dp
                             )
                         } else {
-                            Icon(Icons.Filled.Download, "导出 Excel", tint = Amber)
+                            Icon(Icons.Filled.FileDownload, "导出 Excel", tint = accent())
                         }
                     }
                     IconButton(
@@ -129,7 +132,7 @@ fun CompanyScreen(vm: MainViewModel, onBack: () -> Unit) {
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.Share, "分享 Excel", tint = Amber)
+                        Icon(Icons.Filled.Share, "分享 Excel", tint = accent())
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -147,7 +150,7 @@ fun CompanyScreen(vm: MainViewModel, onBack: () -> Unit) {
                     EmptyBlock("加载失败", vm.companyError)
                     Text(
                         "重试",
-                        color = Amber,
+                        color = accent(),
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .clickable { vm.refreshCompany() }
@@ -165,7 +168,7 @@ fun CompanyScreen(vm: MainViewModel, onBack: () -> Unit) {
 @Composable
 private fun CompanyContent(vm: MainViewModel, c: Company, expanded: Boolean, onToggle: () -> Unit) {
     val info = Fields.ordered(c.jbxx)
-    val previewCount = 12
+    val previewCount = 10
     val shown = if (expanded) info else info.take(previewCount)
 
     Column(
@@ -178,16 +181,8 @@ private fun CompanyContent(vm: MainViewModel, c: Company, expanded: Boolean, onT
         NameCard(c)
         Spacer(Modifier.height(12.dp))
 
-        SectionCard(
-            title = "工商信息",
-            subtitle = "${info.size} 项",
-        ) {
-            shown.forEach { (k, v) ->
-                KeyValueRow(
-                    k, v,
-                    if (k == "经营状态") statusColor(v) else null
-                )
-            }
+        SectionCard(title = "工商信息") {
+            shown.forEach { (k, v) -> FieldRow(k, v) }
             if (info.size > previewCount) {
                 Row(
                     Modifier
@@ -198,13 +193,13 @@ private fun CompanyContent(vm: MainViewModel, c: Company, expanded: Boolean, onT
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (expanded) "收起" else "展开全部 ${info.size} 项",
+                        if (expanded) "收起" else "展开全部",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Amber,
+                        color = accent(),
                     )
                     Icon(
                         if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                        null, tint = Amber, modifier = Modifier.size(18.dp),
+                        null, tint = accent(), modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -213,16 +208,10 @@ private fun CompanyContent(vm: MainViewModel, c: Company, expanded: Boolean, onT
         Spacer(Modifier.height(12.dp))
         DimensionSection(c) { vm.openDimension(it) }
         Spacer(Modifier.height(20.dp))
-        Text(
-            "抓取时间：${c.fetchedAt ?: "-"}　·　被查看 ${c.hitCount} 次　·　" +
-                if (c.cached) "来自本地缓存" else "刚抓取",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-        )
-        Spacer(Modifier.height(24.dp))
     }
 }
 
+/** 企业名片：名称 + 信用代码 + 状态 + 四个关键要点（都配图标） */
 @Composable
 private fun NameCard(c: Company) {
     Column(
@@ -252,62 +241,49 @@ private fun NameCard(c: Company) {
             }
             StatusChip(c.status)
         }
-        Spacer(Modifier.height(10.dp))
-        val cachedDims = c.dimensions.count { it.hasCache }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(vertical = 9.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-        ) {
-            MiniStat("维度", "${c.dimensions.size}")
-            MiniStat("已缓存", "$cachedDims")
-            MiniStat("数据条数", formatCount(c.totalDimRows))
+
+        // 关键要点：只挑用户最关心的四条，直接取自工商信息
+        val highlights = listOf("personName", "regConcat", "esDate", "dom")
+        val map = c.jbxx.toMap()
+        val picked = highlights.mapNotNull { k -> map[k]?.let { k to it } }
+            .filter { Fields.showable(it.first, it.second) }
+        if (picked.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                picked.forEach { (k, v) -> FieldRow(k, v, labelWidth = 68, compact = true) }
+            }
         }
     }
 }
 
 @Composable
-private fun MiniStat(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Amber, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-        Text(
-            label, fontSize = 10.5.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 1.dp),
-        )
-    }
-}
-
-@Composable
 private fun DimensionSection(c: Company, onClick: (DimItem) -> Unit) {
-    SectionCard(title = "企业维度", subtitle = "${c.dimensions.size} 类") {
+    SectionCard(title = "企业维度") {
         c.groups.forEach { (group, items) ->
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 4.dp),
+                    .padding(top = 10.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     group,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Amber,
+                    color = accent(),
                     fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    " ${items.size}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Box(
                     Modifier
                         .padding(start = 8.dp)
                         .height(1.dp)
                         .weight(1f)
-                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
                 )
             }
             items.forEach { d -> DimensionRow(d) { onClick(d) } }
@@ -322,28 +298,26 @@ private fun DimensionRow(d: DimItem, onClick: () -> Unit) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(9.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 6.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            Fields.dimensionIcon(d.name), null,
+            tint = iconTint(),
+            modifier = Modifier.size(15.dp),
+        )
         Text(
             d.name,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 8.dp).weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (d.hasCache) {
-            Text(
-                "缓存 ${d.cachedRows}",
-                style = MaterialTheme.typography.labelSmall,
-                color = FallGreen,
-                modifier = Modifier.padding(end = 8.dp),
-            )
-        }
         Text(
-            d.count.toString(),
+            formatCount(d.count),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (d.count > 0) Amber else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Medium,
         )
         Text(
@@ -351,16 +325,10 @@ private fun DimensionRow(d: DimItem, onClick: () -> Unit) {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-/** 顶部细进度条（维度加载时用） */
-@Composable
-fun ThinLoading(visible: Boolean) {
-    if (visible) {
-        LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth().height(2.dp),
-            color = Amber,
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(16.dp),
         )
     }
 }
