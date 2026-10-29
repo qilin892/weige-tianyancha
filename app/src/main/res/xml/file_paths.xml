@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- 导出的 Excel 先落在 app 私有外部目录，再通过 FileProvider 分享出去 -->
+    <external-files-path name="exports" path="exports/" />
+    <cache-path name="cache" path="." />
+</paths>
