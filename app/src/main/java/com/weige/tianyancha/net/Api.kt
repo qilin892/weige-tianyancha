@@ -172,7 +172,7 @@ object Api {
         parseArray(body).map {
             HotCompany(
                 it.optString("entid"), it.optString("name"),
-                it.optString("status"), it.optInt("hit_count"),
+                it.optString("status"), it.optString("logo"), it.optInt("hit_count"),
             )
         }
     }

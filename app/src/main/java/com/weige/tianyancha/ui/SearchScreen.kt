@@ -250,11 +250,7 @@ private fun SuggestionRow(s: Suggestion, onClick: () -> Unit) {
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            Icons.Filled.Search, null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier.size(15.dp),
-        )
+        CompanyAvatar(s.logo, s.name, 34.dp, corner = 9.dp)
         Column(Modifier.padding(start = 10.dp).weight(1f)) {
             Text(
                 highlighted(s.segments, s.name),
@@ -314,9 +310,7 @@ private fun HotChip(c: HotCompany, modifier: Modifier = Modifier, onClick: () ->
             .padding(horizontal = 10.dp, vertical = 10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Fields.iconOf("entName")?.let {
-                Icon(it, null, tint = iconTint(), modifier = Modifier.size(14.dp))
-            }
+            CompanyAvatar(c.logo, c.name, 18.dp, corner = 5.dp)
             Text(
                 c.name,
                 modifier = Modifier.padding(start = 6.dp),

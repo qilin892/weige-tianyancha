@@ -64,7 +64,13 @@ data class DimensionPage(
     val fetchedAt: String?,
 )
 
-data class HotCompany(val entid: String, val name: String, val status: String, val hitCount: Int)
+data class HotCompany(
+    val entid: String,
+    val name: String,
+    val status: String,
+    val logo: String,
+    val hitCount: Int,
+)
 
 data class Stats(
     val companies: Int,

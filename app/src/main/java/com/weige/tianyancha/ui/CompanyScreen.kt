@@ -222,7 +222,7 @@ private fun NameCard(c: Company) {
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            EyeMark(Modifier.size(34.dp))
+            CompanyAvatar(c.logo, c.name, 44.dp)
             Column(Modifier.padding(start = 10.dp).weight(1f)) {
                 Text(
                     c.name,
